@@ -1,0 +1,57 @@
+const {chromium}=require('playwright');
+const fs=require('node:fs');
+const path=require('node:path');
+const http=require('node:http');
+const assert=require('node:assert/strict');
+const root=path.join(__dirname,'dist');
+const server=http.createServer((req,res)=>{let file=path.join(root,decodeURIComponent(new URL(req.url,'http://localhost').pathname));if(file===root+path.sep)file=path.join(root,'index.html');fs.readFile(file,(err,data)=>{if(err){res.writeHead(404);res.end();return;}res.setHeader('Content-Type',file.endsWith('.js')?'text/javascript; charset=utf-8':file.endsWith('.css')?'text/css':file.endsWith('.jpg')?'image/jpeg':'text/html; charset=utf-8');res.end(data);});});
+(async()=>{let browser;try{
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ browser=await chromium.launch({channel:'chrome',headless:true});
+ const page=await browser.newPage({viewport:{width:1280,height:1000}});
+ const errors=[];page.on('pageerror',err=>errors.push(err.message));
+ page.on('response',r=>{if(r.status()>=400)errors.push(`${r.status()} ${r.url()}`);});
+ await page.goto(process.env.CHECK_URL||`http://127.0.0.1:${server.address().port}/`);
+ await page.getByRole('tab',{name:/고려/}).click();
+ assert.equal(await page.getByRole('tab',{name:/고려/}).getAttribute('aria-selected'),'true');
+ assert((await page.locator('.scope').innerText()).includes('52~67'));
+ await page.getByRole('button',{name:'2단계 개념 이해 설명과 사진 속 단서 찾기',exact:true}).click();
+ await page.screenshot({path:path.join(__dirname,'../chapter-tabs-desktop.png'),fullPage:true});
+ await page.getByRole('button',{name:'새 시험 시작하기',exact:true}).click();
+ await page.getByRole('heading',{name:'고려 탐험 시험',exact:true}).waitFor();
+ const firstIds=await page.evaluate(()=>exam.map(q=>q.id));
+ assert(firstIds.every(id=>id.startsWith('g-')));
+ for(let i=0;i<20;i++){
+  const q=await page.evaluate(()=>({a:exam[position].a,type:exam[position].type,photo:exam[position].photo}));
+  if(q.photo){const image=page.locator('.question-photo img');await image.waitFor();await image.evaluate(el=>el.decode());assert(await image.evaluate(el=>el.naturalWidth>0));}
+  if(q.type==='short')await page.getByRole('textbox',{name:'답을 직접 써 보세요.',exact:true}).fill(q.a.replaceAll(' ','')+'입니다.');
+  else await page.getByRole('radio').filter({hasText:q.a}).click();
+  if(i<19)await page.getByRole('button',{name:'다음 문제',exact:true}).click();
+ }
+ await page.getByRole('button',{name:'답안 제출하기',exact:true}).first().click();
+ await page.getByRole('heading',{name:'답안 채점이 끝났어요!',exact:true}).waitFor();
+ assert.equal(await page.locator('.score>strong').innerText(),'100');
+ assert.equal(await page.locator('.review').count(),20);
+ assert((await page.locator('.topic-scores').innerText()).includes('건국과 나라의 발전'));
+ await page.getByRole('button',{name:'같은 단계로 새 시험',exact:true}).click();
+ const secondIds=await page.evaluate(()=>exam.map(q=>q.id));assert(!secondIds.some(id=>firstIds.includes(id)));
+ await page.getByRole('button',{name:'답안 제출하기',exact:true}).click();
+ await page.getByRole('dialog').getByRole('button',{name:'지금 제출하기',exact:true}).click();
+ assert.equal(await page.locator('.score>strong').innerText(),'0');
+ await page.getByRole('button',{name:'단원·난이도 다시 고르기',exact:true}).click();
+ await page.getByRole('tab',{name:/삼국시대/}).click();
+ await page.getByRole('button',{name:'새 시험 시작하기',exact:true}).click();
+ await page.getByRole('heading',{name:'삼국시대 탐험 시험',exact:true}).waitFor();
+ assert(await page.evaluate(()=>exam.every(q=>!q.id.startsWith('g-'))));
+ assert.equal(await page.locator('#done-text').innerText(),'0 / 20 완료');
+ await page.getByRole('button',{name:'답안 제출하기',exact:true}).click();
+ await page.getByRole('dialog').getByRole('button',{name:'지금 제출하기',exact:true}).click();
+ await page.getByRole('button',{name:'단원·난이도 다시 고르기',exact:true}).click();
+ await page.setViewportSize({width:390,height:844});
+ await page.getByRole('tab',{name:/삼국시대/}).focus();await page.keyboard.press('ArrowRight');
+ assert.equal(await page.getByRole('tab',{name:/고려/}).getAttribute('aria-selected'),'true');
+ assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ await page.screenshot({path:path.join(__dirname,'../chapter-tabs-mobile.png'),fullPage:true});
+ assert.deepEqual(errors,[]);
+ console.log('UI passed: chapters, all 20 answers, photos, 100-point grading, blank grading, retry, chapter isolation, keyboard tabs, mobile layout.');
+ }finally{await browser?.close();server.close();}})().catch(err=>{console.error(err);process.exitCode=1;});

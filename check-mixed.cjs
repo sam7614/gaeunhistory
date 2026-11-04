@@ -1,6 +1,8 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
-const b=require('./dist/bank.js');
+const core=require('./dist/bank.js');
+const goryeo=require('./dist/goryeo.js');
+for(const [chapter,b] of [['three',core],['goryeo',goryeo]]){
 for(let level=1;level<=5;level++){
  let previous=[];
  for(let round=0;round<20;round++){
@@ -14,16 +16,27 @@ for(let level=1;level<=5;level++){
   assert.equal(exam.filter(q=>previous.includes(q.id)).length,0);
   for(const q of exam){if(q.type==='choice'){assert(q.options.includes(q.a));assert.equal(new Set(q.options).size,q.options.length);}if(q.image)assert(fs.existsSync('dist/'+q.image));}
   const answers=Object.fromEntries(exam.map(q=>[q.id,q.type==='short'?q.a.replaceAll(' ','')+'입니다.':q.a]));
-  assert.equal(b.gradeExam(exam,answers).score,100);
+  const grade=(answers)=>core.gradeExam(exam,answers,b.topics??b.TOPICS);
+  assert.equal(grade(answers).score,100);
+  assert.deepEqual(grade(answers).topics.map(t=>t.name),b.topics??b.TOPICS);
+  if(chapter==='goryeo')assert(exam.every(q=>q.id.startsWith('g-')&&q.chapter==='goryeo'));
   const short=exam.find(q=>q.type==='short');answers[short.id]='   ';
-  assert.equal(b.gradeExam(exam,answers).score,95);
-  assert.equal(b.gradeExam(exam,{}).score,0);
+  assert.equal(grade(answers).score,95);
+  assert.equal(grade({}).score,0);
   previous=exam.map(q=>q.id);
  }
- console.log(`Level ${level}: mixed exam, photos, repeat avoidance and grading passed`);
+ console.log(`${chapter} level ${level}: mixed exam, photos, repeat avoidance and grading passed`);
 }
+}
+const b=core;
 assert(b.isCorrect({type:'short',a:'경주 첨성대'},'첨 성 대'));
 assert(b.isCorrect({type:'short',a:'광개토 대왕'},'광개토왕'));
 assert(!b.isCorrect({type:'short',a:'진대법'},'진대법이 아니다'));
 assert(!b.isCorrect({type:'short',a:'진대법'},'진대'));
 console.log('Whitespace, aliases, blanks and incorrect answers verified.');
+const king=goryeo.shortBank(2).find(q=>q.a==='왕건');
+assert(core.isCorrect(king,'태조 왕건입니다.'));
+assert(!core.isCorrect(king,'왕건이 아니다'));
+assert.throws(()=>goryeo.createMixedExam(0));
+assert.throws(()=>goryeo.createMixedExam(6));
+assert.throws(()=>goryeo.createMixedExam(1.5));

@@ -217,5 +217,5 @@ function createMixedExam(level,previous=[],rng=Math.random){
  }
  return shuffle(result,rng).map(q=>({...q,options:q.type==='short'?[]:shuffle([q.a,...q.wrong],rng)}));
 }
-function gradeExam(questions,answers){let items=questions.map(q=>({...q,chosen:isAnswered(q,answers)?answers[q.id]:null,correct:isCorrect(q,answers[q.id])}));return {items,correct:items.filter(q=>q.correct).length,score:items.filter(q=>q.correct).length*5,topics:TOPICS.map((name,t)=>({name,correct:items.filter(q=>q.topic===t&&q.correct).length,total:items.filter(q=>q.topic===t).length}))};}
-if(typeof module!=='undefined')module.exports={TOPICS,FACTS,makeBank,createExam,createMixedExam,gradeExam,normalizeAnswer,isCorrect,isAnswered,photoBank,shortBank};
+function gradeExam(questions,answers,topics=TOPICS){let items=questions.map(q=>({...q,chosen:isAnswered(q,answers)?answers[q.id]:null,correct:isCorrect(q,answers[q.id])}));return {items,correct:items.filter(q=>q.correct).length,score:items.filter(q=>q.correct).length*5,topics:topics.map((name,t)=>({name,correct:items.filter(q=>q.topic===t&&q.correct).length,total:items.filter(q=>q.topic===t).length}))};}
+if(typeof module!=='undefined')module.exports={shuffle,freshPick,TOPICS,FACTS,makeBank,createExam,createMixedExam,gradeExam,normalizeAnswer,isCorrect,isAnswered,photoBank,shortBank};
