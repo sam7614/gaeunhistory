@@ -1,6 +1,6 @@
 /* 사용자가 제공한 사회 교과서 52~64쪽을 바탕으로 작성했습니다. */
 const GORYEO=(()=>{
- const helpers=typeof module!=='undefined'?require('./bank.js'):{shuffle,freshPick};
+ const helpers=typeof module!=='undefined'?require('./bank.js'):{shuffle,freshPick,toCloze};
  const topics=['건국과 나라의 발전','대외 교류','사회와 생활','불교와 문화유산'];
  const records=[];
  function add(topic,rows){rows.forEach((row,i)=>{const [q,a,wrong,clue,why,page]=row.split('|');records.push({id:`g-f${topic}-${i}`,topic,q,a,wrong:wrong.split('/'),clue,why,page});});}
@@ -139,14 +139,21 @@ const GORYEO=(()=>{
   if(level===3)return {...f,q:`설명과 이름이 바르게 연결된 것은 무엇인가요?\n“${f.clue}”`,type:'choice'};
   return {...f,q:level===2?`${f.q}\n도움말: ${f.clue}`:f.q,type:'choice'};
  });}
- function shortBank(level){return records.filter(f=>f.topic<3&&!f.a.endsWith('요.')&&!f.a.includes('·')).map(f=>({...f,id:`g-short${level}-${f.id}`,sourceId:f.id,type:'short',q:level===2?`${f.q}\n도움말: ${f.clue}`:f.q,accepted:aliases[f.a]??[]}));}
+ function shortBank(level){
+  const adapted={
+   'g-f0-11':{a:'무신 정변',why:'문신의 차별에 불만을 품은 무신들은 무신 정변을 일으켜 권력을 차지했어요.'},
+   'g-f2-9':{a:'벼슬',why:'고려의 여성은 가족의 재산을 상속받았지만 벼슬에 오를 수는 없었어요.'},
+   'g-f2-12':{a:'경제활동',why:'고려의 절에서는 종교 활동뿐 아니라 물건을 사고파는 경제활동도 이루어졌어요.'}
+  };
+  return records.filter(f=>f.topic<3&&!f.a.endsWith('요.')).map(f=>({...f,...adapted[f.id]})).map(helpers.toCloze).filter(Boolean).map(f=>({...f,id:`g-short${level}-${f.id}`,sourceId:f.id,accepted:aliases[f.a]??[]}));
+ }
  function createMixedExam(level,previous=[],rng=Math.random){
   if(!Number.isInteger(level)||level<1||level>5)throw Error('난이도는 1~5로 선택해 주세요.');
   const result=[],base=makeBank(level);
   for(let topic=0;topic<4;topic++){
-   const shorts=topic<3?helpers.freshPick(shortBank(level).filter(q=>q.topic===topic),2,previous,rng):[];
+   const shorts=topic<3?helpers.freshPick(shortBank(level).filter(q=>q.topic===topic),4,previous,rng):[];
    const excluded=shorts.map(q=>q.sourceId);
-   const choices=helpers.freshPick(base.filter(q=>q.topic===topic&&!excluded.includes(q.id)),topic<2?3:2,previous,rng);
+   const choices=helpers.freshPick(base.filter(q=>q.topic===topic&&!excluded.includes(q.id)),topic<2?4:topic===2?2:4,previous,rng);
    const pics=topic>=2?helpers.freshPick(photoBank(level).filter(q=>q.topic===topic),topic===2?1:3,previous,rng):[];
    result.push(...shorts,...choices,...pics);
   }

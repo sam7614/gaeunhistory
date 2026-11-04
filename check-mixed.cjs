@@ -7,21 +7,21 @@ for(let level=1;level<=5;level++){
  let previous=[];
  for(let round=0;round<20;round++){
   const exam=b.createMixedExam(level,previous);
-  assert.equal(exam.length,20);
-  assert.equal(new Set(exam.map(q=>q.id)).size,20);
+  assert.equal(exam.length,30);
+  assert.equal(new Set(exam.map(q=>q.id)).size,30);
   assert.equal(exam.filter(q=>q.photo).length,4);
-  assert.equal(exam.filter(q=>!q.photo&&q.type==='short').length,6);
-  assert.equal(exam.filter(q=>!q.photo&&q.type==='choice').length,10);
-  for(let t=0;t<4;t++)assert.equal(exam.filter(q=>q.topic===t).length,5);
+  assert.equal(exam.filter(q=>!q.photo&&q.type==='short').length,12);
+  assert.equal(exam.filter(q=>!q.photo&&q.type==='choice').length,14);
+  for(let t=0;t<4;t++)assert.equal(exam.filter(q=>q.topic===t).length,[8,8,7,7][t]);
   assert.equal(exam.filter(q=>previous.includes(q.id)).length,0);
-  for(const q of exam){if(q.type==='choice'){assert(q.options.includes(q.a));assert.equal(new Set(q.options).size,q.options.length);}if(q.image)assert(fs.existsSync('dist/'+q.image));}
+  for(const q of exam){if(q.type==='short'&&!q.photo){assert(q.cloze);assert.equal(q.cloze.split('{{blank}}').length,2);assert(!q.cloze.includes(q.a));}if(q.type==='choice'){assert(q.options.includes(q.a));assert.equal(new Set(q.options).size,q.options.length);}if(q.image)assert(fs.existsSync('dist/'+q.image));}
   const answers=Object.fromEntries(exam.map(q=>[q.id,q.type==='short'?q.a.replaceAll(' ','')+'입니다.':q.a]));
   const grade=(answers)=>core.gradeExam(exam,answers,b.topics??b.TOPICS);
   assert.equal(grade(answers).score,100);
   assert.deepEqual(grade(answers).topics.map(t=>t.name),b.topics??b.TOPICS);
   if(chapter==='goryeo')assert(exam.every(q=>q.id.startsWith('g-')&&q.chapter==='goryeo'));
   const short=exam.find(q=>q.type==='short');answers[short.id]='   ';
-  assert.equal(grade(answers).score,95);
+  assert.equal(grade(answers).score,97);
   assert.equal(grade({}).score,0);
   previous=exam.map(q=>q.id);
  }

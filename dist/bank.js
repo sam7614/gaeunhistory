@@ -203,19 +203,24 @@ function photoBank(level){return PHOTO_RECORDS.map(([key,topic,name,page,alt,why
  if(type==='choice'&&key!=='dice'&&topic===2&&ident)q='사진 속 사람들이 즐기는 놀이는 무엇인가요?';
  return {id:`photo${level}-${key}`,topic,type,q,a,wrong,page,why:`${name}: ${why}\n${evidence}`,image:`photos/${key}.jpg`,alt:'교과서 속 사진 문제',photo:true};
 });}
-function shortBank(level){return FACTS.filter(f=>f.topic<3).map(f=>({...f,id:`short${level}-${f.id}`,sourceId:f.id,type:'short',q:level===2?`${f.q}\n도움말: ${f.clue}`:f.q}));}
+function toCloze(f){
+ const sentence=f.why.split(/(?<=[.!?。])\s*/).find(text=>text.split(f.a).length===2);
+ if(!sentence)return null;
+ return {...f,type:'short',q:'문장의 빈칸에 알맞은 말을 써 보세요.',cloze:sentence.replace(f.a,'{{blank}}')};
+}
+function shortBank(level){return FACTS.filter(f=>f.topic<3).map(toCloze).filter(Boolean).map(f=>({...f,id:`short${level}-${f.id}`,sourceId:f.id}));}
 function freshPick(pool,count,previous,rng){return [...shuffle(pool.filter(q=>!previous.includes(q.id)),rng),...shuffle(pool.filter(q=>previous.includes(q.id)),rng)].slice(0,count);}
 function createMixedExam(level,previous=[],rng=Math.random){
  if(!Number.isInteger(level)||level<1||level>5)throw Error('난이도는 1~5로 선택해 주세요.');
  const result=[];const base=makeBank(level);
  for(let t=0;t<4;t++){
-  const short=t<3?freshPick(shortBank(level).filter(q=>q.topic===t),2,previous,rng):[];
+  const short=t<3?freshPick(shortBank(level).filter(q=>q.topic===t),4,previous,rng):[];
   const excluded=short.map(q=>q.sourceId);
-  const choices=freshPick(base.filter(q=>q.topic===t&&!excluded.includes(q.id)&&!excluded.includes(q.id.replace(/^c-|^m-/,''))),t<2?3:2,previous,rng).map(q=>({...q,type:'choice'}));
+  const choices=freshPick(base.filter(q=>q.topic===t&&!excluded.includes(q.id)&&!excluded.includes(q.id.replace(/^c-|^m-/,''))),t<2?4:t===2?2:4,previous,rng).map(q=>({...q,type:'choice'}));
   const photos=t>=2?freshPick(photoBank(level).filter(q=>q.topic===t),t===2?1:3,previous,rng):[];
   result.push(...short,...choices,...photos);
  }
  return shuffle(result,rng).map(q=>({...q,options:q.type==='short'?[]:shuffle([q.a,...q.wrong],rng)}));
 }
-function gradeExam(questions,answers,topics=TOPICS){let items=questions.map(q=>({...q,chosen:isAnswered(q,answers)?answers[q.id]:null,correct:isCorrect(q,answers[q.id])}));return {items,correct:items.filter(q=>q.correct).length,score:items.filter(q=>q.correct).length*5,topics:topics.map((name,t)=>({name,correct:items.filter(q=>q.topic===t&&q.correct).length,total:items.filter(q=>q.topic===t).length}))};}
-if(typeof module!=='undefined')module.exports={shuffle,freshPick,TOPICS,FACTS,makeBank,createExam,createMixedExam,gradeExam,normalizeAnswer,isCorrect,isAnswered,photoBank,shortBank};
+function gradeExam(questions,answers,topics=TOPICS){let items=questions.map(q=>({...q,chosen:isAnswered(q,answers)?answers[q.id]:null,correct:isCorrect(q,answers[q.id])}));return {items,correct:items.filter(q=>q.correct).length,score:questions.length?Math.round(items.filter(q=>q.correct).length/questions.length*100):0,topics:topics.map((name,t)=>({name,correct:items.filter(q=>q.topic===t&&q.correct).length,total:items.filter(q=>q.topic===t).length}))};}
+if(typeof module!=='undefined')module.exports={toCloze,shuffle,freshPick,TOPICS,FACTS,makeBank,createExam,createMixedExam,gradeExam,normalizeAnswer,isCorrect,isAnswered,photoBank,shortBank};

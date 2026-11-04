@@ -16,7 +16,7 @@ const server=http.createServer((req,res)=>{let file=path.join(root,decodeURIComp
  assert.deepEqual(await page.locator('[data-level] strong').allTextContents(),['개념 이해','연결과 비교','상황 판단']);
  for(const key of ['three','goryeo'])for(let level=1;level<=3;level++){
   const selected=await page.evaluate(({key,level})=>{selectedChapter=key;startExam(level);return {level:selectedLevel,ids:exam.map(q=>q.id),count:exam.length};},{key,level});
-  assert.equal(selected.level,level);assert.equal(selected.count,20);
+  assert.equal(selected.level,level);assert.equal(selected.count,30);
   assert(selected.ids.filter(id=>id.includes('photo')).every(id=>id.includes(`photo${level+1}-`)));
  }
  assert(await page.evaluate(()=>{try{startExam(4);return false;}catch{return true;}}));
@@ -29,18 +29,28 @@ const server=http.createServer((req,res)=>{let file=path.join(root,decodeURIComp
  await page.getByRole('button',{name:'새 시험 시작하기',exact:true}).click();
  await page.getByRole('heading',{name:'고려 탐험 시험',exact:true}).waitFor();
  const firstIds=await page.evaluate(()=>exam.map(q=>q.id));
+ const blankIndex=await page.evaluate(()=>exam.findIndex(q=>q.cloze));
+ await page.getByRole('button',{name:`${blankIndex+1}번 문제, 미응답`,exact:true}).click();
+ await page.getByRole('textbox',{name:'빈칸 답안',exact:true}).fill('임시답안');
+ await page.getByRole('button',{name:'다음 문제',exact:true}).click();
+ await page.getByRole('button',{name:`${blankIndex+1}번 문제, 답함`,exact:true}).click();
+ assert.equal(await page.getByRole('textbox',{name:'빈칸 답안',exact:true}).inputValue(),'임시답안');
+ await page.getByRole('textbox',{name:'빈칸 답안',exact:true}).fill('');
+ assert.equal(await page.locator('#done-text').innerText(),'0 / 30 완료');
+ await page.screenshot({path:path.join(__dirname,'../cloze-question.png'),fullPage:false});
+ await page.getByRole('button',{name:'1번 문제, 미응답',exact:true}).click();
  assert(firstIds.every(id=>id.startsWith('g-')));
- for(let i=0;i<20;i++){
-  const q=await page.evaluate(()=>({a:exam[position].a,type:exam[position].type,photo:exam[position].photo}));
+ for(let i=0;i<30;i++){
+  const q=await page.evaluate(()=>({a:exam[position].a,type:exam[position].type,photo:exam[position].photo,cloze:exam[position].cloze}));
   if(q.photo){const image=page.locator('.question-photo img');await image.waitFor();await image.evaluate(el=>el.decode());assert(await image.evaluate(el=>el.naturalWidth>0));}
-  if(q.type==='short')await page.getByRole('textbox',{name:'답을 직접 써 보세요.',exact:true}).fill(q.a.replaceAll(' ','')+'입니다.');
+  if(q.type==='short')await page.getByRole('textbox',{name:q.cloze?'빈칸 답안':'답을 직접 써 보세요.',exact:true}).fill(q.a.replaceAll(' ','')+'입니다.');
   else await page.getByRole('radio').filter({hasText:q.a}).click();
-  if(i<19)await page.getByRole('button',{name:'다음 문제',exact:true}).click();
+  if(i<29)await page.getByRole('button',{name:'다음 문제',exact:true}).click();
  }
  await page.getByRole('button',{name:'답안 제출하기',exact:true}).first().click();
  await page.getByRole('heading',{name:'답안 채점이 끝났어요!',exact:true}).waitFor();
  assert.equal(await page.locator('.score>strong').innerText(),'100');
- assert.equal(await page.locator('.review').count(),20);
+ assert.equal(await page.locator('.review').count(),30);
  assert((await page.locator('.topic-scores').innerText()).includes('건국과 나라의 발전'));
  await page.getByRole('button',{name:'같은 단계로 새 시험',exact:true}).click();
  const secondIds=await page.evaluate(()=>exam.map(q=>q.id));assert(!secondIds.some(id=>firstIds.includes(id)));
@@ -54,7 +64,7 @@ const server=http.createServer((req,res)=>{let file=path.join(root,decodeURIComp
  assert.equal(await page.getByRole('radio').count(),0);
  await page.getByRole('button',{name:'답안 제출하기',exact:true}).click();
  await page.getByRole('dialog').getByRole('button',{name:'지금 제출하기',exact:true}).click();
- assert.equal(await page.locator('.score>strong').innerText(),'5');
+ assert.equal(await page.locator('.score>strong').innerText(),'3');
  assert((await page.locator('.review').first().innerText()).includes('청자 어룡형 주전자'));
  await page.screenshot({path:path.join(__dirname,'../exact-photo-name-result.png'),fullPage:false});
  await page.getByRole('button',{name:'단원·난이도 다시 고르기',exact:true}).click();
@@ -62,7 +72,7 @@ const server=http.createServer((req,res)=>{let file=path.join(root,decodeURIComp
  await page.getByRole('button',{name:'새 시험 시작하기',exact:true}).click();
  await page.getByRole('heading',{name:'삼국시대 탐험 시험',exact:true}).waitFor();
  assert(await page.evaluate(()=>exam.every(q=>!q.id.startsWith('g-'))));
- assert.equal(await page.locator('#done-text').innerText(),'0 / 20 완료');
+ assert.equal(await page.locator('#done-text').innerText(),'0 / 30 완료');
  await page.getByRole('button',{name:'답안 제출하기',exact:true}).click();
  await page.getByRole('dialog').getByRole('button',{name:'지금 제출하기',exact:true}).click();
  await page.getByRole('button',{name:'단원·난이도 다시 고르기',exact:true}).click();
@@ -71,6 +81,11 @@ const server=http.createServer((req,res)=>{let file=path.join(root,decodeURIComp
  assert.equal(await page.getByRole('tab',{name:/고려/}).getAttribute('aria-selected'),'true');
  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  await page.screenshot({path:path.join(__dirname,'../chapter-tabs-mobile.png'),fullPage:true});
+ await page.getByRole('button',{name:'새 시험 시작하기',exact:true}).click();
+ await page.evaluate(()=>{position=exam.findIndex(q=>q.cloze);renderExam();});
+ await page.getByRole('textbox',{name:'빈칸 답안',exact:true}).fill('모바일 답안');
+ assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ await page.screenshot({path:path.join(__dirname,'../cloze-question-mobile.png'),fullPage:true});
  assert.deepEqual(errors,[]);
- console.log('UI passed: chapters, all 20 answers, photos, 100-point grading, blank grading, retry, chapter isolation, keyboard tabs, mobile layout.');
+ console.log('UI passed: chapters, all 30 answers, photos, 100-point grading, blank grading, retry, chapter isolation, keyboard tabs, mobile layout.');
  }finally{await browser?.close();server.close();}})().catch(err=>{console.error(err);process.exitCode=1;});
