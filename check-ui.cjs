@@ -6,7 +6,7 @@ const assert=require('node:assert/strict');
 const root=path.join(__dirname,'dist');
 const server=http.createServer((req,res)=>{let file=path.join(root,decodeURIComponent(new URL(req.url,'http://localhost').pathname));if(file===root+path.sep)file=path.join(root,'index.html');fs.readFile(file,(err,data)=>{if(err){res.writeHead(404);res.end();return;}res.setHeader('Content-Type',file.endsWith('.js')?'text/javascript; charset=utf-8':file.endsWith('.css')?'text/css':file.endsWith('.jpg')?'image/jpeg':'text/html; charset=utf-8');res.end(data);});});
 (async()=>{let browser;try{
- await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(18765,'127.0.0.1',resolve);});
  browser=await chromium.launch({channel:'chrome',headless:true});
  const page=await browser.newPage({viewport:{width:1280,height:1000}});
  const errors=[];page.on('pageerror',err=>errors.push(err.message));
@@ -47,6 +47,16 @@ const server=http.createServer((req,res)=>{let file=path.join(root,decodeURIComp
  await page.getByRole('button',{name:'답안 제출하기',exact:true}).click();
  await page.getByRole('dialog').getByRole('button',{name:'지금 제출하기',exact:true}).click();
  assert.equal(await page.locator('.score>strong').innerText(),'0');
+ await page.getByRole('button',{name:'단원·난이도 다시 고르기',exact:true}).click();
+ // A photo must require its full artifact name, even at the highest retained stage.
+ await page.evaluate(()=>{selectedChapter='goryeo';startExam(3);exam[0]={...GORYEO.photoBank(4).find(q=>q.id.endsWith('g-teapot')),options:[]};position=0;renderExam();});
+ await page.getByRole('textbox',{name:'답을 직접 써 보세요.',exact:true}).fill('청자어룡형주전자');
+ assert.equal(await page.getByRole('radio').count(),0);
+ await page.getByRole('button',{name:'답안 제출하기',exact:true}).click();
+ await page.getByRole('dialog').getByRole('button',{name:'지금 제출하기',exact:true}).click();
+ assert.equal(await page.locator('.score>strong').innerText(),'5');
+ assert((await page.locator('.review').first().innerText()).includes('청자 어룡형 주전자'));
+ await page.screenshot({path:path.join(__dirname,'../exact-photo-name-result.png'),fullPage:false});
  await page.getByRole('button',{name:'단원·난이도 다시 고르기',exact:true}).click();
  await page.getByRole('tab',{name:/삼국시대/}).click();
  await page.getByRole('button',{name:'새 시험 시작하기',exact:true}).click();

@@ -196,7 +196,7 @@ const PHOTO_RECORDS=[
  ['hunting',2,'사냥','43','무덤 벽화 속 말을 타고 활을 쏘는 모습','무용총의 수렵도는 고구려 사람들이 말타기와 활쏘기 등의 무예를 중시했음을 보여 줘요.','놀이를 하면서 말타기와 활쏘기 같은 무예도 익혔어요.']
 ];
 function photoBank(level){return PHOTO_RECORDS.map(([key,topic,name,page,alt,why,evidence])=>{
- const ident=level<=3;const type=level===2||level===3?'short':'choice';
+ const ident=true;const type='short';
  const a=ident?name:evidence;
  const wrong=ident?(topic===2?(key==='dice'?['칠지도','덩이쇠','소그드 은화']:['바둑','투호',key==='wrestling'?'사냥':'씨름']):PHOTO_RECORDS.filter(v=>v[1]===3&&v[0]!==key).slice(0,3).map(v=>v[2])):['모든 사람이 같은 신분으로 살았어요.','당시에는 외국과 교류하지 않았어요.','사진만으로 삼국 통일의 연도를 알 수 있어요.'];
  let q=ident?(topic===2&&key!=='dice'?'사진 속 사람들이 즐기는 놀이의 이름을 쓰세요.':'사진 속 유물 또는 유적의 이름은 무엇인가요?'):(level===4?'사진을 보고 알 수 있는 내용으로 알맞은 것은 무엇인가요?':'이 사진을 발표 자료로 쓰려고 해요. 사진의 특징을 근거로 한 설명은 무엇인가요?');

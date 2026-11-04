@@ -40,3 +40,23 @@ assert(!core.isCorrect(king,'왕건이 아니다'));
 assert.throws(()=>goryeo.createMixedExam(0));
 assert.throws(()=>goryeo.createMixedExam(6));
 assert.throws(()=>goryeo.createMixedExam(1.5));
+const fullNames={
+ 'g-pillow':'청자 상감 모란 구름 학 무늬 베개',
+ 'g-stool':'청자 투각 의자',
+ 'g-vase':'청자 상감 운학문 매병',
+ 'g-incense':'청자 투각 칠보문 뚜껑 향로',
+ 'g-teapot':'청자 어룡형 주전자'
+};
+for(const level of [2,3,4]){
+ assert(core.photoBank(level).every(q=>q.type==='short'));
+ assert(goryeo.photoBank(level).every(q=>q.type==='short'&&q.exactName));
+ for(const [key,name] of Object.entries(fullNames)){
+  const q=goryeo.photoBank(level).find(q=>q.id.endsWith(key));
+  assert.equal(q.a,name);
+  assert(core.isCorrect(q,name.replaceAll(' ','')));
+  assert(core.isCorrect(q,name.replaceAll(' ','  ')));
+  for(const vague of ['청자','고려청자','상감 기법','투각','주전자','어룡형 주전자'])assert(!core.isCorrect(q,vague));
+  assert(!core.isCorrect(q,'청자 어룡형 주전자 아닌 것'));
+ }
+}
+console.log('Exact photo names: all three stages, full names, spacing tolerance and rejection of partial names passed.');
