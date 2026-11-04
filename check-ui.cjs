@@ -12,10 +12,19 @@ const server=http.createServer((req,res)=>{let file=path.join(root,decodeURIComp
  const errors=[];page.on('pageerror',err=>errors.push(err.message));
  page.on('response',r=>{if(r.status()>=400)errors.push(`${r.status()} ${r.url()}`);});
  await page.goto(process.env.CHECK_URL||`http://127.0.0.1:${server.address().port}/`);
+ assert.equal(await page.locator('[data-level]').count(),3);
+ assert.deepEqual(await page.locator('[data-level] strong').allTextContents(),['개념 이해','연결과 비교','상황 판단']);
+ for(const key of ['three','goryeo'])for(let level=1;level<=3;level++){
+  const selected=await page.evaluate(({key,level})=>{selectedChapter=key;startExam(level);return {level:selectedLevel,ids:exam.map(q=>q.id),count:exam.length};},{key,level});
+  assert.equal(selected.level,level);assert.equal(selected.count,20);
+  assert(selected.ids.filter(id=>id.includes('photo')).every(id=>id.includes(`photo${level+1}-`)));
+ }
+ assert(await page.evaluate(()=>{try{startExam(4);return false;}catch{return true;}}));
+ await page.evaluate(()=>{selectedChapter='three';renderHome();});
  await page.getByRole('tab',{name:/고려/}).click();
  assert.equal(await page.getByRole('tab',{name:/고려/}).getAttribute('aria-selected'),'true');
  assert((await page.locator('.scope').innerText()).includes('52~67'));
- await page.getByRole('button',{name:'2단계 개념 이해 설명과 사진 속 단서 찾기',exact:true}).click();
+ await page.getByRole('button',{name:'1단계 개념 이해 설명과 사진 속 단서 찾기',exact:true}).click();
  await page.screenshot({path:path.join(__dirname,'../chapter-tabs-desktop.png'),fullPage:true});
  await page.getByRole('button',{name:'새 시험 시작하기',exact:true}).click();
  await page.getByRole('heading',{name:'고려 탐험 시험',exact:true}).waitFor();
